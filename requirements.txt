@@ -1,0 +1,26 @@
+# Core dependencies
+torch>=2.0.0
+numpy>=1.21.0
+tqdm>=4.65.0
+transformers>=4.30.0
+datasets>=2.10.0
+geoopt>=0.5.0
+
+# Visualization
+matplotlib>=3.5.0
+plotly>=5.14.0
+
+# Scientific computing
+scipy>=1.9.0
+scikit-learn>=1.2.0
+
+# Configuration
+pyyaml>=6.0
+
+# Development dependencies (optional)
+pytest>=7.2.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.0.0
+jupyter>=1.0.0
+ipykernel>=6.20.0

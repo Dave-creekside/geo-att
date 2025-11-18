@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.pytest_cache/
+
+# Distribution / Packaging
+dist/
+build/
+*.egg-info/
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Project Specific - Experiments & Outputs
+experiments/
+logs/
+checkpoints/
+samples/
+visualizations/
+
+# Model Weights
+*.pt
+*.pth
+*.ckpt
+
+# Datasets
+# Ignore all files in datasets except README.md and example_conversations.jsonl
+datasets/*
+!datasets/README.md
+!datasets/example_conversations.jsonl
+
+# Temporary / Junk
+untitled folder/

@@ -1,0 +1,102 @@
+# Default configuration for Geometric Attention experiments
+
+# Model configurations
+model:
+  # Architecture
+  dim: 768
+  n_layers: 6
+  n_heads: 12
+  ff_dim_multiplier: 4
+  max_seq_len: 128
+  dropout: 0.1
+  
+  # Geometric attention specific
+  use_optimized: false
+  curvature_bounds: [-2.0, 2.0]
+  init_curvature: 0.0
+
+# Training configurations
+training:
+  # Optimization
+  learning_rate: 3.0e-5
+  weight_decay: 0.01
+  warmup_steps: 500
+  max_grad_norm: 1.0
+  
+  # Training schedule
+  n_epochs: 5
+  batch_size: 32
+  eval_batch_size: 32
+  
+  # Checkpointing
+  save_every_n_epochs: 1
+  checkpoint_dir: "checkpoints/"
+  
+  # Early stopping
+  patience: 3
+  min_delta: 0.001
+
+# Data configurations
+data:
+  # Dataset
+  max_length: 128
+  num_workers: 0
+  
+  # Data paths
+  cache_dir: "~/.cache/datasets"
+
+# Experiment configurations
+experiment:
+  # Reproducibility
+  seed: 42
+  
+  # Device
+  use_cuda: true
+  cuda_device_id: null  # null for auto-select
+  
+  # Logging
+  log_level: "INFO"
+  log_dir: "logs/"
+  
+  # Visualization
+  plot_dir: "plots/"
+  save_plots: true
+
+# Task-specific configurations
+tasks:
+  sst2:
+    n_classes: 2
+    metric: "accuracy"
+    
+  mnli:
+    n_classes: 3
+    metric: "accuracy"
+    
+  ner:
+    n_labels: 7
+    metric: "f1"
+    
+  language_modeling:
+    metric: "perplexity"
+
+# Model sizes for experiments
+model_sizes:
+  tiny:
+    dim: 128
+    n_layers: 1
+    n_heads: 2
+    
+  small:
+    dim: 256
+    n_layers: 2
+    n_heads: 4
+    
+  medium:
+    dim: 512
+    n_layers: 4
+    n_heads: 8
+    
+  large:
+    dim: 1024
+    n_layers: 6
+    n_heads: 16

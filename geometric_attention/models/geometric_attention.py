@@ -143,7 +143,8 @@ class LearnableCurvatureAttention(nn.Module):
         k = self.curvature
         
         # Use proper manifold distance computation
-        return manifold_ops.unified_distance(x, y, k, threshold=0.01, dim=-1)
+        # Use 1e-3 to match updated manifold_ops defaults
+        return manifold_ops.unified_distance(x, y, k, threshold=1e-3, dim=-1)
 
     def compute_attention(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
@@ -161,8 +162,9 @@ class LearnableCurvatureAttention(nn.Module):
 
         # 2. PROJECT TO MANIFOLD - This is the critical fix!
         # Map embeddings from Euclidean tangent space to the actual manifold
-        q_manifold = manifold_ops.project_to_manifold(q, self.curvature, threshold=0.01, dim=-1)
-        k_manifold = manifold_ops.project_to_manifold(k, self.curvature, threshold=0.01, dim=-1)
+        # Use 1e-3 to match updated manifold_ops defaults
+        q_manifold = manifold_ops.project_to_manifold(q, self.curvature, threshold=1e-3, dim=-1)
+        k_manifold = manifold_ops.project_to_manifold(k, self.curvature, threshold=1e-3, dim=-1)
 
         # 3. Compute pairwise distances ON THE MANIFOLD
         q_expanded = q_manifold.unsqueeze(2)  # [batch, seq_len, 1, dim]
@@ -172,6 +174,7 @@ class LearnableCurvatureAttention(nn.Module):
         distances = self.unified_distance(q_expanded, k_expanded)  # [batch, seq_len, seq_len]
 
         # 4. Convert distances to attention weights (negative distance → higher attention)
+        # self.temperature is already a learnable parameter in this class
         scores = -distances / (self.temperature + 1e-8)
         
         # 5. Apply causal mask if provided
@@ -262,11 +265,14 @@ class OptimizedGeometricAttention(nn.Module):
     2. Cached norms for efficiency
     3. Fused distance computation
     4. In-place operations where safe
+    5. Learnable temperature for adaptive scaling
     """
     def __init__(self, dim: int):
         super().__init__()
         self.dim = dim
-        self.scale = dim ** -0.5
+        # Learnable log-temperature instead of fixed scaling
+        # Init to 0.0 (temp=1.0) or adjusted for dim
+        self.log_temperature = nn.Parameter(torch.tensor(0.0))
 
         self.q_proj = nn.Linear(dim, dim, bias=False)
         self.k_proj = nn.Linear(dim, dim, bias=False)
@@ -294,18 +300,23 @@ class OptimizedGeometricAttention(nn.Module):
         k_val = self.curvature
 
         # 2. PROJECT TO MANIFOLD - Critical fix!
-        q_manifold = manifold_ops.project_to_manifold(q, k_val, threshold=0.01, dim=-1)
-        k_manifold = manifold_ops.project_to_manifold(k, k_val, threshold=0.01, dim=-1)
+        # Use tighter threshold (1e-3) to match Taylor expansion in unified_distance
+        q_manifold = manifold_ops.project_to_manifold(q, k_val, threshold=1e-3, dim=-1)
+        k_manifold = manifold_ops.project_to_manifold(k, k_val, threshold=1e-3, dim=-1)
 
         # 3. Compute pairwise distances ON THE MANIFOLD
         q_expanded = q_manifold.unsqueeze(2)  # [batch, seq_len, 1, dim]
         k_expanded = k_manifold.unsqueeze(1)  # [batch, 1, seq_len, dim]
         
-        # Use proper manifold distance
-        distance = manifold_ops.unified_distance(q_expanded, k_expanded, k_val, threshold=0.01, dim=-1)
+        # Use proper manifold distance with Taylor expansion near 0
+        distance = manifold_ops.unified_distance(q_expanded, k_expanded, k_val, threshold=1e-3, dim=-1)
 
-        # 4. Convert to similarity and apply attention
-        similarity = -distance * self.scale
+        # 4. Convert to similarity and apply attention with learnable temperature
+        # scale = 1 / temperature = exp(-log_temp)
+        # We also include the 1/sqrt(d) factor implicitly or explicitly
+        # Here we let the model learn the scale completely
+        scale = torch.exp(-self.log_temperature) * (self.dim ** -0.5)
+        similarity = -distance * scale
         
         # 5. Apply causal mask if provided
         if mask is not None:

@@ -1,20 +1,23 @@
 # Geometric Attention
 
-A PyTorch implementation of transformers with learnable curvature attention mechanisms that operate in different geometric spaces (hyperbolic, spherical, Euclidean).
+A PyTorch implementation of transformers with learnable curvature attention mechanisms that can dynamically learn to operate in Hyperbolic, Spherical, or Euclidean geometries.
 
-## Key Finding
+## 🚀 Overview
 
-This research discovers a **universal 50/50 hyperbolic-spherical geometry split** that emerges across all NLP tasks, suggesting that language processing inherently requires both hierarchical (hyperbolic) and distributional (spherical) representations.
+This project explores "Geometric Deep Learning" applied to Transformer attention mechanisms. Unlike standard transformers that operate solely in Euclidean space (via dot products), **Geometric Attention** allows each attention head to learn its own optimal geometry:
 
-## Features
+-   **Hyperbolic ($c < 0$):** Ideal for hierarchical data, syntax trees, and entailment.
+-   **Spherical ($c > 0$):** Ideal for cyclic data and semantic similarity.
+-   **Euclidean ($c \approx 0$):** Standard local attention.
 
-- **Learnable Curvature Attention**: Each attention head learns its optimal geometry through gradient descent
-- **Multi-Geometry Support**: Hyperbolic, spherical, and Euclidean spaces
-- **Optimized Implementation**: Fast approximations and efficient distance computations
-- **Multiple Architectures**: Classification, token classification (NER), and language modeling
-- **Comprehensive Evaluation**: Tested on SST-2, MNLI, WikiANN NER, and WikiText
+### 🧬 Key Innovations
 
-## Installation
+1.  **Unified Manifold Operations:** A mathematically rigorous implementation of exponential maps, logarithmic maps, and distance functions that work across all three geometries.
+2.  **Learnable Curvature:** The curvature parameter $c$ is learnable per head, allowing the model to self-organize.
+3.  **Taylor Expansion Stability:** Uses second-order Taylor approximations for near-zero curvature regions, ensuring smooth gradients and numerical stability across the Euclidean boundary.
+4.  **Adaptive Temperature:** A learnable temperature parameter scales the attention scores, adapting to the different volume growth rates of hyperbolic vs. spherical spaces.
+
+## 📦 Installation
 
 ```bash
 # Clone the repository
@@ -29,184 +32,109 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## Quick Start
+## 🛠️ Quick Start
 
-```python
-from geometric_attention.models import GeometricTransformer, StandardTransformer
-from geometric_attention.data import SST2Dataset, load_glue_dataset
-from geometric_attention.training import Trainer
-from transformers import AutoTokenizer
+### Interactive CLI
 
-# Load tokenizer and data
-tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-sst2 = load_glue_dataset("sst2")
+ The easiest way to use the library is through the interactive CLI:
 
-# Create datasets
-train_dataset = SST2Dataset(sst2['train'], tokenizer)
-val_dataset = SST2Dataset(sst2['validation'], tokenizer)
+```bash
+python main.py
+```
+This menu allows you to:
+- Train new models (Language Modeling, Dialogue, Sentiment Analysis)
+- Chat with trained models
+- Analyze learned geometries
+- Run comprehensive experiments
 
-# Initialize model
-model = GeometricTransformer(
-    vocab_size=tokenizer.vocab_size,
-    dim=768,
-    n_layers=6,
-    n_heads=12,
-    n_classes=2
-)
+### Training a Language Model
 
-# Train
-trainer = Trainer(model)
-history = trainer.train(
-    train_dataset, 
-    val_dataset,
-    n_epochs=3,
-    task_type='classification'
-)
+To train a model from the command line:
+
+```bash
+# Train a medium-sized model on WikiText-2
+python train_language_model.py --dim 512 --heads 8 --layers 4 --epochs 5 --compile
 ```
 
-## Project Structure
+### Training for Dialogue
+
+To train a conversational agent:
+
+```bash
+# Train on a custom conversation dataset
+python train_dialogue.py --data datasets/my_conversations.jsonl --epochs 3
+```
+
+## 🧠 How It Works
+
+Standard attention computes similarity as a dot product: $Attention(Q, K) = \text{softmax}(\frac{QK^T}{\sqrt{d}})$.
+
+**Geometric Attention** replaces this with a distance-based metric on a manifold:
+
+1.  **Projection:** Linear projections $Q, K$ are mapped from the tangent space to the manifold (Poincaré ball or Sphere) using an **Exponential Map**.
+2.  **Distance:** We compute the geodesic distance $d_c(q, k)$ on the manifold with curvature $c$.
+3.  **Attention:** $Attention(Q, K) = \text{softmax}(-d_c(q, k) \cdot \tau)$.
+
+Where $\tau$ is a learnable temperature scaling factor.
+
+### Mathematical Stability
+
+The codebase handles the singularities of Riemannian geometry:
+-   **Near Zero Curvature:** When $c \to 0$, standard formulas for `arctanh` (hyperbolic) or `arccos` (spherical) become numerically unstable. We automatically switch to a **Taylor series approximation**:
+    $$ d_c(x,y) \approx ||x-y|| \cdot (1 - \frac{c}{12} ||x-y||^2) $$
+-   **Boundary Conditions:** Projections ensure points stay within the Poincaré ball ($||x|| < 1/\sqrt{-c}$).
+
+## 📂 Project Structure
 
 ```
 geometric-attention/
-├── geometric_attention/          # Main package
-│   ├── models/                  # Model architectures
-│   │   ├── geometric_attention.py  # Core attention mechanisms
-│   │   ├── transformers.py        # Transformer architectures
-│   │   └── language_models.py     # Language modeling variants
-│   ├── data/                    # Data handling
-│   │   └── datasets.py          # Dataset classes
-│   ├── training/                # Training utilities
-│   │   ├── trainer.py           # Training loops
-│   │   └── evaluation.py        # Evaluation metrics
-│   └── utils/                   # Utilities
-│       ├── visualization.py     # Plotting functions
-│       └── helpers.py           # Helper functions
-├── scripts/                     # Training scripts
-├── notebooks/                   # Analysis notebooks
-├── requirements.txt            # Dependencies
-└── README.md                   # This file
+├── geometric_attention/          # Core Package
+│   ├── models/                   # Neural Architectures
+│   │   ├── geometric_attention.py    # The core attention logic
+│   │   ├── manifold_ops.py           # Riemannian math & projections
+│   │   ├── language_models.py        # GPT-style models
+│   │   └── transformers.py           # Encoder-only models
+│   ├── training/                 # Training Loop & Trainers
+│   ├── dialogue/                 # Chat & Inference Tools
+│   └── utils/                    # Visualization & Logging
+├── scripts/                      # Standalone Scripts
+│   ├── quick_test.py             # Verify math stability
+│   └── run_comprehensive_experiments.py
+├── datasets/                     # Data storage
+└── docs/                         # Documentation
 ```
 
-## Key Results
+## 📊 Key Findings (Preliminary)
 
-| Task | Geometric Acc | Standard Acc | Geometry Distribution |
-|------|--------------|--------------|----------------------|
-| SST-2 | 80.39% | 81.31% | 36H/0E/36S (50/50 split) |
-| MNLI | 52.57% | 45.49% | 36H/1E/35S (50/50 split) |
-| NER | 74.03% | 76.14% | 36H/0E/36S (50/50 split) |
+Initial experiments suggest a **"50/50 Split"** phenomenon where models converge to using approximately half hyperbolic and half spherical heads, with very few remaining purely Euclidean. This suggests natural language relies heavily on both hierarchical (hyperbolic) and distributional (spherical) relationships.
 
-- **H**: Hyperbolic heads (hierarchical structure)
-- **E**: Euclidean heads (local attention)
-- **S**: Spherical heads (semantic similarity)
+## 🧪 Running Tests
 
-## Model Variants
+To verify the mathematical stability of the manifold operations:
 
-### Classification Models
-- `GeometricTransformer`: With learnable curvature attention
-- `StandardTransformer`: Baseline transformer
-- `OptimizedGeometricTransformer`: Speed-optimized version
-
-### Language Models
-- `GeometricCausalLM`: Causal LM with geometric attention
-- `TinyGeometricLM`: Minimal 2-head model for testing
-- `LargeGeometricLM`: 1024-dim model for better performance
-
-### Token Classification
-- `GeometricTransformerNER`: For named entity recognition
-- `StandardTransformerNER`: Baseline NER model
-
-## Experiments
-
-### Running Classification Tasks
-
-```python
-from geometric_attention.experiments import run_sst2_experiment
-
-# Train on SST-2
-results = run_sst2_experiment(
-    n_epochs=5,
-    dim=768,
-    n_heads=12,
-    n_layers=6
-)
+```bash
+python scripts/quick_test.py
 ```
 
-### Running Language Modeling
+This will check:
+-   Gradient flow through $c=0$
+-   Numerical stability of Taylor expansions
+-   Learnable parameter updates
 
-```python
-from geometric_attention.experiments import run_lm_experiment
-
-# Train on WikiText-2
-results = run_lm_experiment(
-    dataset="wikitext-2",
-    n_epochs=5
-)
-```
-
-## Visualization
-
-```python
-from geometric_attention.utils.visualization import (
-    plot_curvature_heatmap,
-    plot_geometry_distribution,
-    plot_training_curves
-)
-
-# Visualize learned geometries
-plot_curvature_heatmap(results['curvature_matrix'])
-plot_geometry_distribution(
-    results['n_hyperbolic'],
-    results['n_euclidean'],
-    results['n_spherical']
-)
-```
-
-## Citation
+## 📜 Citation
 
 If you use this code in your research, please cite:
 
 ```bibtex
-@article{geometric-attention-2024,
-  title={Universal Geometry of Language Understanding: The 50/50 Hyperbolic-Spherical Structure},
-  author={Your Name},
-  year={2024},
-  journal={arXiv preprint}
+@misc{geometric-attention-2025,
+  title={Geometric Attention: Learnable Curvature Transformers},
+  author={Orion},
+  year={2025},
+  publisher={GitHub},
+  howpublished={\url{https://github.com/yourusername/geometric-attention}}
 }
 ```
 
-## Key Findings
-
-1. **Universal 50/50 Split**: All tasks converge to ~50% hyperbolic and ~50% spherical heads
-2. **No Euclidean Preference**: Local attention (Euclidean) is rarely used (<2% of heads)
-3. **Task-Independent Geometry**: The same geometric structure emerges regardless of task type
-4. **Scale Invariance**: Pattern holds from 2 heads to 96 heads
-
-## Performance Notes
-
-- Geometric models are 2-3x slower than standard transformers
-- Optimized version reduces slowdown to ~2x
-- Better performance on complex reasoning tasks (MNLI: +7%)
-- Competitive on simpler tasks (SST-2: -0.9%)
-
-## Requirements
-
-- Python 3.8+
-- PyTorch 2.0+
-- Transformers 4.30+
-- Geoopt 0.5+
-- See `requirements.txt` for complete list
-
 ## License
 
-MIT License - see LICENSE file for details
-
-## Acknowledgments
-
-This research builds on:
-- Hyperbolic embeddings (Nickel & Kiela, 2017)
-- Geometric deep learning (Bronstein et al., 2021)
-- Transformer architectures (Vaswani et al., 2017)
-
-## Contact
-
-For questions or collaboration: [your.email@example.com]
+MIT License

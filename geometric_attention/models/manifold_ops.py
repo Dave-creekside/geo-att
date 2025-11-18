@@ -312,18 +312,17 @@ def unified_exp_map(v: torch.Tensor, x: torch.Tensor, curvature: torch.Tensor,
 
 
 def unified_distance(x: torch.Tensor, y: torch.Tensor, curvature: torch.Tensor,
-                     threshold: float = 0.01, dim: int = -1) -> torch.Tensor:
+                     threshold: float = 1e-3, dim: int = -1) -> torch.Tensor:
     """
-    Unified distance function that handles all geometries.
+    Unified distance function that handles all geometries with smooth transitions.
     
-    NOTE: Uses Python if statements for correctness. The torch.where() approach
-    caused NaN gradients because it computed distances on unprojected points.
-    The slight compile overhead is acceptable for numerical stability.
+    Uses Taylor expansion for near-zero curvature to ensure gradient continuity
+    and numerical stability across the Euclidean boundary (c=0).
     
     Args:
         x, y: Points [*, dim]
         curvature: Learnable curvature parameter
-        threshold: Threshold for near-zero curvature
+        threshold: Threshold for near-zero curvature (Taylor approximation)
         dim: Dimension along which to compute distance
         
     Returns:
@@ -331,22 +330,27 @@ def unified_distance(x: torch.Tensor, y: torch.Tensor, curvature: torch.Tensor,
     """
     c = curvature
     
-    if c < -threshold:  # Hyperbolic
+    if torch.abs(c) < threshold:
+        # Taylor expansion for small curvature:
+        # d_c(x,y) ≈ ||x-y|| * (1 - c/12 * ||x-y||^2)
+        # This ensures smooth gradient flow through c=0
+        dist_euc = euclidean_distance(x, y, dim=dim)
+        return dist_euc * (1.0 - c * (dist_euc ** 2) / 12.0)
+    
+    elif c < -threshold:  # Hyperbolic
         return poincare_distance(x, y, c, dim=dim)
-    elif c > threshold:  # Spherical
+        
+    else:  # Spherical (c > threshold)
         return spherical_distance(x, y, c, dim=dim)
-    else:  # Euclidean
-        return euclidean_distance(x, y, dim=dim)
 
 
 def project_to_manifold(x: torch.Tensor, curvature: torch.Tensor,
-                       threshold: float = 0.01, dim: int = -1) -> torch.Tensor:
+                       threshold: float = 1e-3, dim: int = -1) -> torch.Tensor:
     """
     Project points to appropriate manifold based on curvature.
     
-    NOTE: Uses Python if statements for correctness. The torch.where() approach
-    caused NaN gradients in spherical heads during extended training (Test 7).
-    The slight compile overhead is acceptable for numerical stability.
+    Uses a smaller threshold and identity mapping for near-zero curvature
+    to match the unified_distance Taylor expansion region.
     
     Args:
         x: Points [*, dim]
@@ -357,12 +361,16 @@ def project_to_manifold(x: torch.Tensor, curvature: torch.Tensor,
     Returns:
         Points on manifold
     """
-    if curvature < -threshold:  # Hyperbolic
+    if torch.abs(curvature) < threshold:
+        # Near Euclidean: Identity mapping
+        # This matches the region where we use Taylor expansion for distance
+        return x
+        
+    elif curvature < -threshold:  # Hyperbolic
         return project_to_poincare_ball(x, curvature, dim=dim)
-    elif curvature > threshold:  # Spherical
+        
+    else:  # Spherical (c > threshold)
         return project_to_sphere(x, dim=dim)
-    else:  # Euclidean
-        return x  # No projection needed
 
 
 # ============================================================================
